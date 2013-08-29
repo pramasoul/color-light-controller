@@ -21,6 +21,9 @@ class coloredLight(object):
 	    print data
 	self.sock.sendto(data, (self.ip, self.port))
 
+    def off(self):
+        self.set(red=0.0, green=0.0, blue=0.0, white=0.0)
+
 def lightShow(light):
     import math
     import time
