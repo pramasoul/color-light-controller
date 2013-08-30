@@ -1,0 +1,137 @@
+/*********************************************************************
+PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+See LICENSE and COPYING for usage.
+
+*********************************************************************/
+#ifndef _INCLUDE_PICO_QUEUE
+#define _INCLUDE_PICO_QUEUE
+#include <stdint.h>
+#include "pico_config.h"
+#include "pico_frame.h"
+
+#define Q_LIMIT 0
+
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+
+struct pico_queue {
+  uint32_t frames;
+  uint32_t size;
+  uint32_t max_frames;
+  uint32_t max_size;
+  struct pico_frame *head;
+  struct pico_frame *tail;
+#ifdef PICO_SUPPORT_MUTEX
+  void * mutex;
+#endif
+  uint8_t shared;
+};
+
+#ifdef PICO_SUPPORT_MUTEX
+#define LOCK(x) {\
+  if (x == NULL) \
+    x = pico_mutex_init(); \
+  pico_mutex_lock(x); \
+}
+#define UNLOCK(x) pico_mutex_unlock(x);
+
+#else 
+#define LOCK(x) do{}while(0)
+#define UNLOCK(x) do{}while(0)
+#endif
+
+#ifdef PICO_SUPPORT_DEBUG_TOOLS
+static void debug_q(struct pico_queue *q)
+{
+  struct pico_frame *p = q->head;
+  dbg("%d: ", q->frames);
+  while(p) {
+    dbg("(%p)-->", p);
+    p = p->next;
+  }
+  dbg("X\n");
+}
+
+#else
+
+#define debug_q(x) do{}while(0)
+#endif
+
+static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
+{
+  if ((q->max_frames) && (q->max_frames <= q->frames))
+    return -1;
+    
+  if ((Q_LIMIT) && (Q_LIMIT < p->buffer_len + q->size))
+    return -1;
+    
+  if ((q->max_size) && (q->max_size < (p->buffer_len + q->size)))
+    return -1;
+
+  if (q->shared)
+    LOCK(q->mutex);
+
+  p->next = NULL;
+  if (!q->head) {
+    q->head = p;
+    q->tail = p;
+    q->size = 0;
+    q->frames = 0;
+  } else {
+    q->tail->next = p;
+    q->tail = p;
+  }
+  q->size += p->buffer_len;
+  q->frames++;
+  debug_q(q);
+
+  if (q->shared)
+    UNLOCK(q->mutex);
+  return q->size;
+}
+
+static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
+{
+  struct pico_frame *p = q->head;
+  if (q->frames < 1)
+    return NULL;
+  if (q->shared)
+    LOCK(q->mutex);
+
+  q->head = p->next;
+  q->frames--;
+  q->size -= p->buffer_len;
+  if (q->head == NULL)
+    q->tail = NULL;
+  debug_q(q);
+  p->next = NULL;
+  if (q->shared)
+    UNLOCK(q->mutex);
+  return p;
+}
+
+static inline struct pico_frame *pico_queue_peek(struct pico_queue *q)
+{
+  struct pico_frame *p = q->head;
+  if (q->frames < 1)
+    return NULL;
+  debug_q(q);
+  return p;
+}
+
+static inline void pico_queue_empty(struct pico_queue *q)
+{
+  struct pico_frame *p = pico_dequeue(q);
+  while(p) {
+    pico_free(p);
+    p = pico_dequeue(q);
+  }
+}
+
+static inline void pico_queue_protect(struct pico_queue *q)
+{
+  q->shared = 1;
+}
+
+#endif
