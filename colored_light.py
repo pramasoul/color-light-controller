@@ -4,7 +4,7 @@ import socket
 #import random, string
 #from time import time, sleep
 
-class coloredLight(object):
+class ColoredLight(object):
     def __init__(self, ip='192.168.32.139', port=2327):
 	self.ip = ip
 	self.port = port
@@ -45,6 +45,36 @@ def lightShow(light):
 		  white = v(wk))
 	time.sleep(0.01)
 	t += 0.01
+
+def flashLight(light, f=5, duration=10):
+    import time
+    t0 = now = time.time()
+    t_finish = t0 + duration
+    t = lambda p,r: 0.5 * (((now % p) / p) > r)
+    while now < t_finish:
+        ft = f * now
+        light.set(
+            red=t(1, 0.5),
+            green=t(0.5, 0.5),
+            blue=t(0.25, 0.5),
+            white=0 )
+        time.sleep(0.01)
+        now = time.time()
+    light.off()
+
+def randLight(light, f=5, duration=10):
+    import random
+    import time
+    t0 = now = time.time()
+    t_finish = t0 + duration
+    p = 1.0 / f
+    d = {}
+    while now < t_finish:
+        d[random.choice(['red', 'green', 'blue'])] = random.choice([0, 0.5])
+        light.set(**d)
+        time.sleep(p)
+        now = time.time()
+    light.off()
 
 def main():
     light = coloredLight()
