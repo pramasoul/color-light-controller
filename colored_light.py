@@ -12,7 +12,6 @@ class ColoredLight(object):
 	self.red = self.green = self.blue = self.white = 0;
 	self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,socket.IPPROTO_UDP)
 	self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-	self.sock.bind(('', self.port))
 
     def set(self, **args):
 	self.__dict__.update(args)
@@ -35,10 +34,6 @@ def lightShow(light):
     t = 0
     v = lambda w: k*(math.sin(t*w) + 1.0)
     while True:
-#	light.set(red   = k*math.sin(t*wr),
-#		  green = k*math.sin(t*wg),
-#		  blue  = k*math.sin(t*wb),
-#		  white = k*math.sin(t*wk))
 	light.set(red   = v(wr),
 		  green = v(wg),
 		  blue  = v(wb),
@@ -77,7 +72,7 @@ def randLight(light, f=5, duration=10):
     light.off()
 
 def main():
-    light = coloredLight()
+    light = ColoredLight()
 #    light.red = 0.015
 #    light.green = 0.02
 #    light.blue = 0.03
