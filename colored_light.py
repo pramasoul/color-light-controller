@@ -1,4 +1,5 @@
 import socket
+import struct
 #import fcntl, os
 #import errno
 #import random, string
@@ -23,7 +24,48 @@ class ColoredLight(object):
     def off(self):
         self.set(red=0.0, green=0.0, blue=0.0, white=0.0)
 
-def lightShow(light):
+class NeoPixel(object):
+    def __init__(self, **args):
+        self.off()
+        self.__dict__.update(args)
+
+    def __repr__(self):
+        return object.__repr__(self) + ": (%3.3f, %3.3f, %3.3f)" % (self.red, self.green, self.blue)
+
+    def off(self):
+        self.red = self.green = self.blue = 0.0;
+
+
+class NeoRing(object):
+    def __init__(self, ip='192.168.32.139', port=2327):
+	self.ip = ip
+	self.port = port
+	self.debug = False
+	self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,socket.IPPROTO_UDP)
+	self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.neos = [ NeoPixel() for i in xrange(16) ]
+
+    def rotate(self, steps=1):
+        n = int(steps) % 16
+        self.neos = self.neos[n:] + self.neos[:n]
+
+    def send(self):
+        data = 'n' + ''.join(struct.pack('!BBB',
+                                   int(neo.green * 255.5),
+                                   int(neo.red   * 255.5),
+                                   int(neo.blue  * 255.5)) for neo in self.neos)
+	if self.debug:
+	    print data
+	self.sock.sendto(data, (self.ip, self.port))
+
+    def off(self):
+        for neo in self.neos:
+            neo.off()
+
+################################################################
+# demonstration functions
+
+def lightshow(light):
     import math
     import time
     k = 0.05
@@ -41,7 +83,7 @@ def lightShow(light):
 	time.sleep(0.01)
 	t += 0.01
 
-def flashLight(light, f=5, duration=10):
+def flashlight(light, f=5, duration=10):
     import time
     t0 = now = time.time()
     t_finish = t0 + duration
@@ -57,7 +99,24 @@ def flashLight(light, f=5, duration=10):
         now = time.time()
     light.off()
 
-def randLight(light, f=5, duration=10):
+def copcar(light, duration=10):
+    import time
+    light.off()
+    t0 = now = time.time()
+    t_finish = t0 + duration
+    while time.time() < t_finish:
+        for i in range(5):
+            light.set(red=1)
+            time.sleep(0.005)
+            light.off()
+            time.sleep(0.1)
+        for i in range(5):
+            light.set(blue=1)
+            time.sleep(0.005)
+            light.off()
+            time.sleep(0.1)
+
+def randlight(light, f=5, duration=10):
     import random
     import time
     t0 = now = time.time()
@@ -71,13 +130,25 @@ def randLight(light, f=5, duration=10):
         now = time.time()
     light.off()
 
+def ringshow(ring, duration=10):
+    ring.off()
+    red_pos = green_pos = blue_pos = 0
+    bump_red = bump_green = False
+    for i in xrange(16 * duration):
+        r.send()
+        time.sleep(1.0/16)
+        b = ring.neos[blue_pos]
+        b.blue = 0
+        blue_pos = (blue_pos + 1) % 16
+        ring.neos[blue_pos].blue = 1
+        if b.green:
+            pass                # ***
+        
+        
+
+
 def main():
     light = ColoredLight()
-#    light.red = 0.015
-#    light.green = 0.02
-#    light.blue = 0.03
-#    light.white = 0.05
-#    light.set()
     light.set(red=0.015, green=0.02, blue=0.03, white=0.05)
 
 if __name__ == '__main__':
