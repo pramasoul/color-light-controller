@@ -36,14 +36,14 @@ class NeoPixel(object):
         self.red = self.green = self.blue = 0.0;
 
 
-class NeoRing(object):
-    def __init__(self, ip='192.168.32.139', port=2327):
+class NeoString(object):
+    def __init__(self, ip='192.168.32.139', port=2327, length=16):
 	self.ip = ip
 	self.port = port
 	self.debug = False
 	self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,socket.IPPROTO_UDP)
 	self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.neos = [ NeoPixel() for i in xrange(16) ]
+        self.neos = [ NeoPixel() for i in xrange(length) ]
 
     def rotate(self, steps=1):
         n = int(steps) % 16
@@ -61,6 +61,15 @@ class NeoRing(object):
     def off(self):
         for neo in self.neos:
             neo.off()
+
+class NeoRing(NeoString):
+    def __init__(self, ip='192.168.32.139', port=2327):
+        NeoString.__init__(self, ip=ip, port=port, length=16)
+
+class NeoPanel(NeoString):
+    def __init__(self, ip='192.168.32.139', port=2327):
+        NeoString.__init__(self, ip=ip, port=port, length=64)
+
 
 ################################################################
 # demonstration functions
