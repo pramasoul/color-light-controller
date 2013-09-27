@@ -1,9 +1,10 @@
 import socket
 import struct
+from collections import deque
 #import fcntl, os
 #import errno
 #import random, string
-#from time import time, sleep
+
 
 class ColoredLight(object):
     def __init__(self, ip='192.168.32.139', port=2327):
@@ -43,7 +44,23 @@ class NeoString(object):
 	self.debug = False
 	self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,socket.IPPROTO_UDP)
 	self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.neos = [ NeoPixel() for i in xrange(length) ]
+        self.neos = list(NeoPixel() for i in xrange(length))
+
+    def __len__(self):
+        return len(self.neos)
+
+    def __getitem__(self, key):
+        return self.neos.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        return self.neos.__setitem__(key, value)
+
+    def __iter__(self):
+        return iter(self.neos)
+
+    def __repr__(self):
+        return object.__repr__(self) + "\n" \
+            + "\n".join("(%3.3f, %3.3f, %3.3f)" % (n.red, n.green, n.blue) for n in self)
 
     def rotate(self, steps=1):
         n = int(steps) % 16
@@ -53,13 +70,13 @@ class NeoString(object):
         data = 'n' + ''.join(struct.pack('!BBB',
                                    int(neo.green * 255.5),
                                    int(neo.red   * 255.5),
-                                   int(neo.blue  * 255.5)) for neo in self.neos)
+                                   int(neo.blue  * 255.5)) for neo in self)
 	if self.debug:
 	    print data
 	self.sock.sendto(data, (self.ip, self.port))
 
     def off(self):
-        for neo in self.neos:
+        for neo in self:
             neo.off()
 
 class NeoRing(NeoString):
@@ -139,19 +156,32 @@ def randlight(light, f=5, duration=10):
         now = time.time()
     light.off()
 
-def ringshow(ring, duration=10):
+def ringshow(ring, duration=10, speed=1.0, brightness=1.0):
+    import time
+    tag_green = tag_red = False
     ring.off()
-    red_pos = green_pos = blue_pos = 0
-    bump_red = bump_green = False
-    for i in xrange(16 * duration):
-        r.send()
-        time.sleep(1.0/16)
-        b = ring.neos[blue_pos]
-        b.blue = 0
-        blue_pos = (blue_pos + 1) % 16
-        ring.neos[blue_pos].blue = 1
-        if b.green:
-            pass                # ***
+    p = ring.neos[0]
+    p.red = p.green = p.blue = brightness
+    for i in xrange(16*duration):
+        ring.send()
+        time.sleep(1.0/speed)
+        f = ring.neos[i%16]
+        t = ring.neos[(i+1)%16]
+        f.blue = 0
+        t.blue = brightness
+        if f.green and tag_green:
+            f.green = 0
+            t.green = brightness
+            tag_green = False
+            if f.red and tag_red:
+                f.red = 0
+                t.red = brightness
+                tag_red = False
+            else:
+                tag_red = bool(t.red)
+        else:
+            tag_green = bool(t.green)
+            
         
         
 
